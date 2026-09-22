@@ -169,8 +169,16 @@ class SettingsField(base.CompositeField):
             to each resource and the caller must format it correctly
         :returns: Response object
         """
-
-        return connector.patch(self.resource_uri, data=value, etag=self._etag)
+        etag = self._etag
+        if not etag:
+            # The parent resource did not supply @Redfish.Settings.ETag.
+            # Some BMCs return an HTTP ETag header on GET of the Settings
+            # endpoint and enforce If-Match on PATCH (responding with HTTP
+            # 428 Precondition Required when it is absent). Fetch the ETag
+            # directly from the Settings endpoint so it can be included.
+            response = connector.get(self.resource_uri)
+            etag = response.headers.get('ETag')
+        return connector.patch(self.resource_uri, data=value, etag=etag)
 
     @property
     def resource_uri(self):

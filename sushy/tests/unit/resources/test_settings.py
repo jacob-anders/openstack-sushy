@@ -81,6 +81,35 @@ class SettingsFieldTestCase(base.TestCase):
             data={'Attributes': {'key': 'value'}},
             etag='9234ac83b9700123cc32')
 
+    def test_commit_fetches_etag_from_settings_when_parent_etag_absent(self):
+        # When @Redfish.Settings.ETag is absent from the parent body, commit()
+        # must GET the Settings endpoint and use its HTTP ETag response header.
+        # Some BMCs (e.g. AMI-based) enforce If-Match and return 428 otherwise.
+        conn = mock.Mock()
+        conn.get.return_value.headers = {'ETag': '"abc123"'}
+        instance = self.settings._load(self.json, conn)
+        instance._etag = None
+        instance.commit(conn, {'Attributes': {'key': 'value'}})
+        conn.get.assert_called_once_with(
+            '/redfish/v1/Systems/437XR1138R2/BIOS/Settings')
+        conn.patch.assert_called_once_with(
+            '/redfish/v1/Systems/437XR1138R2/BIOS/Settings',
+            data={'Attributes': {'key': 'value'}},
+            etag='"abc123"')
+
+    def test_commit_no_etag_anywhere_sends_patch_without_etag(self):
+        # When neither the parent ETag nor the Settings endpoint ETag is
+        # available, commit() falls through and sends no If-Match header.
+        conn = mock.Mock()
+        conn.get.return_value.headers = {}
+        instance = self.settings._load(self.json, conn)
+        instance._etag = None
+        instance.commit(conn, {'Attributes': {'key': 'value'}})
+        conn.patch.assert_called_once_with(
+            '/redfish/v1/Systems/437XR1138R2/BIOS/Settings',
+            data={'Attributes': {'key': 'value'}},
+            etag=None)
+
     def test_get_status_failure(self):
         instance = self.settings._load(self.json, mock.Mock())
 

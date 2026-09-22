@@ -67,6 +67,7 @@ class ControllerTestCase(base.TestCase):
     def test_update(self):
         self.conn.get.return_value.json.side_effect = [
             self.json_doc, self.json_doc]
+        self.conn.get.return_value.headers = {}
         mock_response = mock.Mock()
         mock_response.status_code = http_client.ACCEPTED
         mock_response.headers = {'Content-Length': 42,
